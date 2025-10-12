@@ -107,7 +107,8 @@ export class AuthController {
   })
   async googleAuthRedirect(@Req() req, @Res() res: Response) {
     const result = await this.authService.googleLogin(req.user);
-    
+
+    // Redirect to frontend with tokens
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     res.redirect(
       `${frontendUrl}/auth/callback?token=${result.accessToken}&refreshToken=${result.refreshToken}`,

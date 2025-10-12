@@ -22,15 +22,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         done: VerifyCallback,
     ): Promise<any> {
         const { id, name, emails, photos } = profile;
-        
+
         const user = {
         googleId: id,
         email: emails[0].value,
         displayName: `${name.givenName} ${name.familyName}`,
-        avatar: photos[0].value,
+        avatar: photos[0]?.value || `https://api.dicebear.com/7.x/avataaars/svg?seed=${emails[0].value}`,
         accessToken,
         };
-        
+
         done(null, user);
     }
 }
