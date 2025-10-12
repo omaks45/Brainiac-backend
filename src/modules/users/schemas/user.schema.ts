@@ -1,120 +1,122 @@
+// src/modules/users/schemas/user.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import * as bcrypt from 'bcrypt';
 
 export type UserDocument = User & Document;
 
-@Schema({ _id: false })
-class UserPreferences {
-    @Prop({ type: [String], default: [] })
-    favoriteCategories: string[];
-
-    @Prop({ type: String, enum: ['easy', 'medium', 'hard'], default: 'medium' })
-    difficulty: string;
-
-    @Prop({ type: Boolean, default: true })
-    notificationsEnabled: boolean;
-}
-
-@Schema({ _id: false })
-class UserStats {
-    @Prop({ type: Number, default: 0 })
-    totalQuizzes: number;
-
-    @Prop({ type: Number, default: 0 })
-    totalScore: number;
-
-    @Prop({ type: Number, default: 0 })
-    averageScore: number;
-
-    @Prop({ type: Number, default: 0 })
-    rank: number;
-
-    @Prop({ type: Number, default: 0 })
-    streak: number;
-
-    @Prop({ type: Date })
-    lastActive: Date;
-}
-
 @Schema({ timestamps: true })
 export class User {
-    @Prop({ required: true, unique: true, lowercase: true, trim: true })
+    @Prop({ required: true, unique: true, lowercase: true, trim: true, index: true })
     email: string;
 
-    @Prop({ required: true, unique: true, trim: true, minlength: 3, maxlength: 30 })
+    @Prop({ required: true, unique: true, trim: true, index: true })
     username: string;
 
-    @Prop({ required: true, trim: true })
+    @Prop({ required: true })
     displayName: string;
 
-    @Prop({ sparse: true, unique: true })
-    googleId?: string;
-
-    @Prop({ select: false })
+    @Prop({ required: false, select: false }) // Optional for Google OAuth users, hidden by default
     password?: string;
+
+    @Prop({ default: null })
+    googleId?: string;
 
     @Prop({ default: 'https://api.dicebear.com/7.x/avataaars/svg?seed=default' })
     avatar: string;
 
-    @Prop({ type: UserPreferences, default: () => ({}) })
-    preferences: UserPreferences;
+    @Prop({ default: 'user', enum: ['user', 'admin', 'moderator'] })
+    role: string;
 
-    @Prop({ type: UserStats, default: () => ({}) })
-    stats: UserStats;
-
-    @Prop({ type: Boolean, default: false })
+    @Prop({ default: false })
     isEmailVerified: boolean;
 
-    @Prop({ type: Boolean, default: true })
-    isActive: boolean;
+    @Prop({ type: Object, default: {} })
+    preferences: {
+        favoriteCategories?: string[];
+        difficulty?: string;
+        notificationsEnabled?: boolean;
+    };
 
-    @Prop({ type: [String], default: ['user'] })
-    roles: string[];
+    @Prop({
+        type: {
+        totalQuizzes: { type: Number, default: 0 },
+        totalScore: { type: Number, default: 0 },
+        averageScore: { type: Number, default: 0 },
+        rank: { type: Number, default: 0 },
+        streak: { type: Number, default: 0 },
+        lastActive: { type: Date, default: Date.now },
+        },
+        default: {
+        totalQuizzes: 0,
+        totalScore: 0,
+        averageScore: 0,
+        rank: 0,
+        streak: 0,
+        lastActive: new Date(),
+        },
+        _id: false,
+    })
+    stats: {
+        totalQuizzes: number;
+        totalScore: number;
+        averageScore: number;
+        rank: number;
+        streak: number;
+        lastActive: Date;
+    };
+
+    @Prop({ default: null, select: false })
+    refreshToken?: string;
+
+    // Password Reset Fields
+    @Prop({ default: null, select: false })
+    resetPasswordToken?: string;
+
+    @Prop({ default: null })
+    resetPasswordExpiry?: Date;
+
+    // Email Verification Fields
+    @Prop({ default: null, select: false })
+    verificationToken?: string;
+
+    @Prop({ default: null })
+    verificationTokenExpiry?: Date;
+
+    @Prop({ default: null })
+    lastPasswordChange?: Date;
+
+    @Prop({ default: Date.now })
+    createdAt: Date;
+
+    @Prop({ default: Date.now })
+    updatedAt: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-// Indexes for better query performance
-UserSchema.index({ email: 1 });
-UserSchema.index({ username: 1 });
-UserSchema.index({ googleId: 1 }, { sparse: true });
-UserSchema.index({ 'stats.rank': -1 });
+// Create compound indexes for better query performance
+UserSchema.index({ email: 1, username: 1 });
+UserSchema.index({ googleId: 1 });
+UserSchema.index({ resetPasswordExpiry: 1 });
+UserSchema.index({ verificationTokenExpiry: 1 });
 
-// Hash password before saving
-UserSchema.pre('save', async function (next) {
-    if (!this.isModified('password') || !this.password) {
-        return next();
+// Add a pre-save hook to update lastPasswordChange when password is modified
+UserSchema.pre('findOneAndUpdate', function (next) {
+    const update = this.getUpdate() as any;
+    if (update && (update.password || update.$set?.password)) {
+        if (update.$set) {
+        update.$set.lastPasswordChange = new Date();
+        } else {
+        update.lastPasswordChange = new Date();
+        }
     }
-
-    try {
-        const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
-        next();
-    } catch (error) {
-        next(error);
-    }
+    next();
 });
 
-// Instance method to compare passwords
-UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-    try {
-        if (!this.password) return false;
-        return await bcrypt.compare(candidatePassword, this.password);
-    } catch (error) {
-        return false;
+// Add pre-save middleware for direct document saves
+UserSchema.pre('save', function (next) {
+    if (this.isModified('password')) {
+        this.lastPasswordChange = new Date();
     }
-};
-
-// Transform output - remove sensitive data
-UserSchema.set('toJSON', {
-    transform: (doc, ret) => {
-        return {
-            ...ret,
-            id: ret._id,
-            _id: undefined,
-            __v: undefined,
-            password: undefined
-        };
-    },
+    next();
 });

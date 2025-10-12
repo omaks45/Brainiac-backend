@@ -8,7 +8,7 @@ import { Model } from 'mongoose';
 import { User, UserDocument } from '../../users/schemas/user.schema';
 
 export interface JwtPayload {
-    sub: string; // user ID
+    sub: string;
     email: string;
     username: string;
     role: string;
@@ -28,15 +28,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     async validate(payload: JwtPayload) {
-        const user = await this.userModel.findById(payload.sub).select('-password -refreshToken');
-        
+        const user = await this.userModel
+        .findById(payload.sub)
+        .select('-password -refreshToken');
+
         if (!user) {
         throw new UnauthorizedException('User not found');
         }
-
-        // Update last active
-        user.stats.lastActive = new Date();
-        await user.save();
 
         return user;
     }
