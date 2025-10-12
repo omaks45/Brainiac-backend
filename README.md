@@ -30,6 +30,8 @@ A comprehensive quiz application backend built with NestJS, featuring AI-powered
     - [Installation](#installation)
   - [npm install](#npm-install)
     - [Start development server](#start-development-server)
+  - [npm run start:dev](#npm-run-startdev)
+  - [Verify installation](#verify-installation)
 
 ---
 
@@ -105,12 +107,12 @@ cd brainiac-backend
 
 ---
 
-2.  **Install dependencies**
+2. **Install dependencies**
 ```bash
 npm install
 ---
 
-Create an env file
+3. **Create an env file**
 
 Configure environment variables (see Environment Variables)
 
@@ -118,9 +120,11 @@ Configure environment variables (see Environment Variables)
 
 ### Start development server
 
-bashnpm run start:dev
+```bash
+npm run start:dev
+---
 
-Verify installation
+## Verify installation
 
 
 Server: http://localhost:5000
