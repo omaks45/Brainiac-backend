@@ -28,6 +28,7 @@ A comprehensive quiz application backend built with NestJS, featuring AI-powered
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [Installation](#installation)
+  - [npm install](#npm-install)
     - [Start development server](#start-development-server)
 
 ---
@@ -103,9 +104,11 @@ git clone <your-repo-url>
 cd brainiac-backend
 
 ---
-Install dependencies
 
+2.  **Install dependencies**
+```bash
 npm install
+---
 
 Create an env file
 
@@ -121,4 +124,5 @@ Verify installation
 
 
 Server: http://localhost:5000
+
 Swagger Docs: http://localhost:5000/api/docs
