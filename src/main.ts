@@ -1,20 +1,31 @@
 // src/main.ts
-import 'reflect-metadata'; // <-- ADD THIS LINE AT THE TOP
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Check environment
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  const app = await NestFactory.create(AppModule, {
+    logger: isProduction ? ['error', 'warn'] : ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
 
-  // Get config service
   const configService = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
 
-  // Enable CORS
+  // Parse multiple CORS origins
+  const corsOrigins = configService
+    .get<string>('CORS_ORIGIN', 'http://localhost:3001')
+    .split(',')
+    .map(origin => origin.trim());
+
+  // Enable CORS with multiple origins
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN') || 'http://localhost:3001',
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -35,8 +46,23 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger Configuration - Only in development
-  if (configService.get<string>('NODE_ENV') !== 'production') {
+  // Swagger Configuration - Available in both development and production
+  const swaggerEnabled = configService.get<string>('SWAGGER_ENABLED', 'true') === 'true';
+  
+  if (swaggerEnabled) {
+    const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const port = configService.get<number>('PORT', 5000);
+    
+    // Determine server URLs based on environment
+    const servers = isProduction
+      ? [
+          { url: configService.get<string>('BACKEND_URL') || 'https://your-api.vercel.app', description: 'Production Server' },
+          { url: `http://localhost:${port}`, description: 'Local Development' },
+        ]
+      : [
+          { url: `http://localhost:${port}`, description: 'Development Server' },
+        ];
+
     const config = new DocumentBuilder()
       .setTitle('Brainiac Quiz API')
       .setDescription(
@@ -63,13 +89,20 @@ async function bootstrap() {
         },
         'JWT-auth',
       )
-      .addServer('http://localhost:5000', 'Development Server')
+      .setExternalDoc('Frontend Application', frontendUrl)
       .build();
+
+    // Add servers dynamically
+    servers.forEach(server => {
+      config.servers = config.servers || [];
+      config.servers.push(server);
+    });
 
     const document = SwaggerModule.createDocument(app, config);
     
     SwaggerModule.setup('api/docs', app, document, {
       customSiteTitle: 'Brainiac API Documentation',
+      customfavIcon: 'https://nestjs.com/img/logo-small.svg',
       customCss: `
         .swagger-ui .topbar { 
           background-color: #2c3e50; 
@@ -77,22 +110,36 @@ async function bootstrap() {
         .swagger-ui .info { 
           margin: 50px 0; 
         }
+        .swagger-ui .info .title {
+          color: #2c3e50;
+        }
       `,
       swaggerOptions: {
         persistAuthorization: true,
         displayRequestDuration: true,
         filter: true,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
       },
     });
 
-    console.log('Swagger documentation: http://localhost:5000/api/docs');
+    if (!isProduction) {
+      logger.log(`Swagger documentation: http://localhost:${port}/api/docs`);
+    } else {
+      logger.log('Swagger documentation available at /api/docs');
+    }
   }
 
   const port = configService.get<number>('PORT') || 5000;
   await app.listen(port);
   
-  console.log(`Application running on: http://localhost:${port}`);
-  console.log(`Environment: ${configService.get<string>('NODE_ENV')}`);
+  if (!isProduction) {
+    logger.log(`Application running on: http://localhost:${port}`);
+    logger.log(`Environment: ${configService.get<string>('NODE_ENV')}`);
+    logger.log(`CORS enabled for: ${corsOrigins.join(', ')}`);
+  } else {
+    logger.log('Application started successfully in production mode');
+  }
 }
 
 bootstrap();
