@@ -96,31 +96,55 @@ export class AuthService {
     };
   }
 
+  /**
+   * Google OAuth Login/Signup Handler
+   * 
+   * @param googleUser - User data returned from Google OAuth (email, googleId, etc.)
+   * @returns Authentication tokens and user data
+   */
   async googleLogin(googleUser: any): Promise<AuthResponseDto> {
     const { googleId, email, displayName, avatar } = googleUser;
 
-    const user = await this.userModel.findOneAndUpdate(
-      { email },
-      {
-        $setOnInsert: {
-          username: this.generateUsername(email),
-          displayName,
-          googleId,
-          avatar,
-          isEmailVerified: true,
-          stats: this.getDefaultStats(),
-        },
-        $set: {
-          googleId,
-          'stats.lastActive': new Date(),
-        },
-      },
-      { upsert: true, new: true }
-    );
+    // Check if user exists by email
+    const existingUser = await this.userModel.findOne({ email }).exec();
 
+    let user: UserDocument;
+
+    if (existingUser) {
+      // Update their Google ID and last active time
+      user = await this.userModel.findOneAndUpdate(
+        { email },
+        {
+          $set: {
+            googleId,
+            'stats.lastActive': new Date(),
+            // Update avatar only if they're using default Dicebear avatar
+            ...(existingUser.avatar.includes('dicebear') && avatar ? { avatar } : {}),
+          },
+        },
+        { new: true }
+      ).exec();
+    } else {
+      // Create new account with Google data
+      user = await this.userModel.create({
+        email,
+        username: this.generateUsername(email),
+        displayName,
+        googleId,
+        avatar,
+        isEmailVerified: true, // Google accounts are pre-verified
+        stats: this.getDefaultStats(),
+      });
+    }
+
+    // Generate JWT tokens for the user
     const [tokens] = await Promise.all([
       this.generateTokens(user),
-      this.emailService.sendLoginNotification(email, displayName, 'Google Login'),
+      this.emailService.sendLoginNotification(
+        email, 
+        displayName, 
+        existingUser ? 'Google Login' : 'Registration'
+      ),
     ]);
 
     await this.updateRefreshToken(user._id.toString(), tokens.refreshToken);
@@ -130,7 +154,6 @@ export class AuthService {
       user: this.sanitizeUser(user),
     };
   }
-
   async refreshTokens(userId: string, refreshToken: string): Promise<AuthResponseDto> {
     const user = await this.userModel
       .findById(userId)
@@ -159,6 +182,7 @@ export class AuthService {
     };
   }
 
+  
   async logout(userId: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(
       userId,

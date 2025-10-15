@@ -1,4 +1,3 @@
-// src/modules/email/email.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
@@ -61,7 +60,7 @@ export class EmailService {
             to: email,
             subject: `${actionType} Notification - Brainiacs`,
             html: this.buildEmailTemplate(
-            '🧠 Brainiacs',
+            'Brainiacs',
             displayName,
             actionMessages[actionType],
             `
@@ -70,7 +69,7 @@ export class EmailService {
                 <p><strong>Time:</strong> ${timestamp}</p>
                 <p><strong>New tokens:</strong> Generated ✓</p>
                 </div>
-                ${actionType === 'Registration' ? '<p style="margin: 20px 0;">Get started by taking your first quiz and competing with others!</p><a href="https://brainiacs.com/dashboard" class="button">Go to Dashboard</a>' : ''}
+                ${actionType === 'Registration' ? '<p style="margin: 20px 0;">Get started by taking your first quiz and competing with others!</p><a href="http://localhost:3001/dashboard/home" class="button">Go to Dashboard</a>' : ''}
                 <div class="security-note">
                 <strong>Security Notice:</strong> If you didn't perform this action, please secure your account immediately and contact our support team.
                 </div>
@@ -98,7 +97,7 @@ export class EmailService {
         resetToken: string,
     ): Promise<void> {
         try {
-        const resetUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${resetToken}`;
+        const resetUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/auth/reset-password?token=${resetToken}`;
         
         const mailOptions = {
             from: {
@@ -161,7 +160,7 @@ export class EmailService {
         verificationToken: string,
     ): Promise<void> {
         try {
-        const verificationUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/verify-email?token=${verificationToken}`;
+        const verificationUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/auth/verify-email?token=${verificationToken}`;
         
         const mailOptions = {
             from: {
@@ -192,7 +191,7 @@ export class EmailService {
         displayName: string,
     ): Promise<void> {
         try {
-        const dashboardUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/dashboard`;
+        const dashboardUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/dashboard/home`;
         
         const mailOptions = {
             from: {
@@ -278,7 +277,7 @@ export class EmailService {
 
     private getPasswordChangedTemplate(displayName: string, timestamp: string): string {
         return this.buildEmailTemplate(
-        '✅ Password Changed',
+        'Password Changed',
         displayName,
         'Your password has been changed successfully.',
         `
@@ -312,7 +311,7 @@ export class EmailService {
 
     private getWelcomeEmailTemplate(displayName: string, dashboardUrl: string): string {
         return this.buildEmailTemplate(
-        '🎉 Welcome to Brainiacs!',
+        'Welcome to Brainiacs!',
         displayName,
         'Your email has been verified! You\'re all set to start your quiz journey and compete with other brilliant minds.',
         `
@@ -440,7 +439,7 @@ export class EmailService {
                 <h1>${title}</h1>
                 </div>
                 <div class="content">
-                <p class="greeting">Hello ${displayName}! 👋</p>
+                <p class="greeting">Hello ${displayName}! </p>
                 <p class="message">${message}</p>
                 ${content}
                 </div>
@@ -471,7 +470,7 @@ export class EmailService {
 
     Action: ${actionType}
     Time: ${timestamp}
-    New tokens: Generated ✓
+    New tokens: Generated
 
     If you didn't perform this action, please secure your account immediately.
 
@@ -502,7 +501,7 @@ export class EmailService {
             <body>
             <div class="container">
                 <div class="header">
-                <h1>⚠️ Security Alert</h1>
+                <h1>Security Alert</h1>
                 </div>
                 <div class="content">
                 <p>Hello ${displayName},</p>
