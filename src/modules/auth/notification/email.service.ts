@@ -1,47 +1,42 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
 export class EmailService {
     private readonly logger = new Logger(EmailService.name);
-    private transporter: Transporter;
+    private resend: Resend;
+    private emailFrom: string;
 
     constructor(private configService: ConfigService) {
-        this.initializeTransporter();
+        this.initializeEmailService();
     }
 
-    private initializeTransporter() {
-        this.transporter = nodemailer.createTransport({
-        service: this.configService.get<string>('EMAIL_SERVICE'),
-        auth: {
-            user: this.configService.get<string>('EMAIL_USER'),
-            pass: this.configService.get<string>('EMAIL_PASS'),
-        },
-        });
+    private initializeEmailService() {
+        const resendApiKey = this.configService.get<string>('RESEND_API_KEY');
+        this.emailFrom = this.configService.get<string>('EMAIL_FROM') || 'Brainiac Quiz <onboarding@resend.dev>';
 
-        // Verify connection configuration
-        this.transporter.verify((error, success) => {
-        if (error) {
-            this.logger.error('Email transporter verification failed:', error);
+        if (resendApiKey) {
+        this.resend = new Resend(resendApiKey);
+        this.logger.log('Resend email service initialized successfully');
         } else {
-            this.logger.log('Email server is ready to send messages');
+        this.logger.warn('Resend API key not found. Email service disabled.');
         }
-        });
     }
 
     /**
      * Send login/token generation notification to user
-     * @param email - User's email address
-     * @param displayName - User's display name
-     * @param actionType - Type of action (Login, Registration, Token Refresh)
      */
     async sendLoginNotification(
         email: string,
         displayName: string,
         actionType: 'Login' | 'Registration' | 'Google Login' | 'Token Refresh',
     ): Promise<void> {
+        if (!this.resend) {
+        this.logger.warn('Email service not initialized');
+        return;
+        }
+
         try {
         const timestamp = this.getCurrentTimestamp();
         
@@ -52,11 +47,8 @@ export class EmailService {
             'Token Refresh': 'Your session was refreshed and new tokens were generated.',
         };
 
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs Quiz Platform',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
+        await this.resend.emails.send({
+            from: this.emailFrom,
             to: email,
             subject: `${actionType} Notification - Brainiacs`,
             html: this.buildEmailTemplate(
@@ -69,177 +61,162 @@ export class EmailService {
                 <p><strong>Time:</strong> ${timestamp}</p>
                 <p><strong>New tokens:</strong> Generated ✓</p>
                 </div>
-                ${actionType === 'Registration' ? '<p style="margin: 20px 0;">Get started by taking your first quiz and competing with others!</p><a href="http://localhost:3001/dashboard/home" class="button">Go to Dashboard</a>' : ''}
+                ${actionType === 'Registration' ? `<p style="margin: 20px 0;">Get started by taking your first quiz and competing with others!</p><a href="${this.configService.get('FRONTEND_URL')}/dashboard/home" class="button">Go to Dashboard</a>` : ''}
                 <div class="security-note">
                 <strong>Security Notice:</strong> If you didn't perform this action, please secure your account immediately and contact our support team.
                 </div>
             `
             ),
-            text: this.getPlainTextEmail(displayName, actionType, timestamp),
-        };
+        });
 
-        await this.transporter.sendMail(mailOptions);
         this.logger.log(`${actionType} notification sent successfully to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send ${actionType} notification to ${email}:`, error);
+        this.logger.error(`Failed to send ${actionType} notification to ${email}:`, error.message);
         }
     }
 
     /**
      * Send password reset email
-     * @param email - User's email address
-     * @param displayName - User's display name
-     * @param resetToken - Password reset token
      */
     async sendPasswordResetEmail(
         email: string,
         displayName: string,
         resetToken: string,
     ): Promise<void> {
+        if (!this.resend) {
+        this.logger.warn('Email service not initialized');
+        return;
+        }
+
         try {
         const resetUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/auth/reset-password?token=${resetToken}`;
         
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs Security',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
+        await this.resend.emails.send({
+            from: this.emailFrom,
             to: email,
             subject: 'Password Reset Request - Brainiacs',
             html: this.getPasswordResetTemplate(displayName, resetUrl),
-            text: `Password Reset Request\n\nHello ${displayName},\n\nYou requested to reset your password. Click the link below to reset it:\n\n${resetUrl}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.`,
-        };
+        });
 
-        await this.transporter.sendMail(mailOptions);
         this.logger.log(`Password reset email sent to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send password reset email to ${email}:`, error);
+        this.logger.error(`Failed to send password reset email to ${email}:`, error.message);
         throw error;
         }
     }
 
     /**
      * Send password changed notification
-     * @param email - User's email address
-     * @param displayName - User's display name
      */
     async sendPasswordChangedNotification(
         email: string,
         displayName: string,
     ): Promise<void> {
+        if (!this.resend) {
+        this.logger.warn('Email service not initialized');
+        return;
+        }
+
         try {
         const timestamp = this.getCurrentTimestamp();
         
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs Security',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
+        await this.resend.emails.send({
+            from: this.emailFrom,
             to: email,
             subject: 'Password Changed Successfully - Brainiacs',
             html: this.getPasswordChangedTemplate(displayName, timestamp),
-            text: `Password Changed\n\nHello ${displayName},\n\nYour password was successfully changed at ${timestamp}.\n\nIf you didn't make this change, please contact support immediately.`,
-        };
+        });
 
-        await this.transporter.sendMail(mailOptions);
         this.logger.log(`Password changed notification sent to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send password changed notification to ${email}:`, error);
+        this.logger.error(`Failed to send password changed notification to ${email}:`, error.message);
         }
     }
 
     /**
      * Send email verification link
-     * @param email - User's email address
-     * @param displayName - User's display name
-     * @param verificationToken - Email verification token
      */
     async sendVerificationEmail(
         email: string,
         displayName: string,
         verificationToken: string,
     ): Promise<void> {
+        if (!this.resend) {
+        this.logger.warn('Email service not initialized');
+        return;
+        }
+
         try {
         const verificationUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/auth/verify-email?token=${verificationToken}`;
         
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
+        await this.resend.emails.send({
+            from: this.emailFrom,
             to: email,
             subject: 'Verify Your Email - Brainiacs',
             html: this.getVerificationEmailTemplate(displayName, verificationUrl),
-            text: `Email Verification\n\nHello ${displayName},\n\nWelcome to Brainiacs! Please verify your email by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.`,
-        };
+        });
 
-        await this.transporter.sendMail(mailOptions);
         this.logger.log(`Verification email sent to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send verification email to ${email}:`, error);
+        this.logger.error(`Failed to send verification email to ${email}:`, error.message);
         throw error;
         }
     }
 
     /**
      * Send welcome email after verification
-     * @param email - User's email address
-     * @param displayName - User's display name
      */
     async sendWelcomeEmail(
         email: string,
         displayName: string,
     ): Promise<void> {
+        if (!this.resend) {
+        this.logger.warn('Email service not initialized');
+        return;
+        }
+
         try {
         const dashboardUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/dashboard/home`;
         
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs Team',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
+        await this.resend.emails.send({
+            from: this.emailFrom,
             to: email,
             subject: 'Welcome to Brainiacs!',
             html: this.getWelcomeEmailTemplate(displayName, dashboardUrl),
-            text: `Welcome to Brainiacs!\n\nHello ${displayName},\n\nYour email has been verified! You're all set to start your quiz journey.\n\nVisit your dashboard: ${dashboardUrl}`,
-        };
+        });
 
-        await this.transporter.sendMail(mailOptions);
         this.logger.log(`Welcome email sent to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send welcome email to ${email}:`, error);
+        this.logger.error(`Failed to send welcome email to ${email}:`, error.message);
         }
     }
 
     /**
      * Send security alert for suspicious activity
-     * @param email - User's email address
-     * @param displayName - User's display name
-     * @param ipAddress - IP address of the request
      */
     async sendSecurityAlert(
         email: string,
         displayName: string,
         ipAddress?: string,
     ): Promise<void> {
+        if (!this.resend) {
+        this.logger.warn('Email service not initialized');
+        return;
+        }
+
         try {
         const timestamp = this.getCurrentTimestamp();
 
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs Security',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
+        await this.resend.emails.send({
+            from: this.emailFrom,
             to: email,
             subject: 'Security Alert - Unusual Activity Detected',
             html: this.getSecurityAlertTemplate(displayName, timestamp, ipAddress),
-            text: `Security Alert\n\nHello ${displayName},\n\nWe detected unusual activity on your account at ${timestamp}${ipAddress ? ` from IP: ${ipAddress}` : ''}.\n\nIf this wasn't you, please secure your account immediately.`,
-        };
+        });
 
-        await this.transporter.sendMail(mailOptions);
         this.logger.log(`Security alert sent to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send security alert to ${email}:`, error);
+        this.logger.error(`Failed to send security alert to ${email}:`, error.message);
         }
     }
 
@@ -328,6 +305,44 @@ export class EmailService {
         `,
         '#28a745'
         );
+    }
+
+    private getSecurityAlertTemplate(
+        displayName: string,
+        timestamp: string,
+        ipAddress?: string,
+    ): string {
+        return `
+        <!DOCTYPE html>
+        <html>
+            <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
+                .content { padding: 30px 20px; }
+                .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+            </style>
+            </head>
+            <body>
+            <div class="container">
+                <div class="header">
+                <h1>Security Alert</h1>
+                </div>
+                <div class="content">
+                <p>Hello ${displayName},</p>
+                <p>We detected unusual activity on your Brainiacs account.</p>
+                <div class="alert-box">
+                    <p><strong>Time:</strong> ${timestamp}</p>
+                    ${ipAddress ? `<p><strong>IP Address:</strong> ${ipAddress}</p>` : ''}
+                </div>
+                <p>If this wasn't you, please secure your account immediately by changing your password.</p>
+                </div>
+            </div>
+            </body>
+        </html>
+        `;
     }
 
     private buildEmailTemplate(
@@ -439,78 +454,13 @@ export class EmailService {
                 <h1>${title}</h1>
                 </div>
                 <div class="content">
-                <p class="greeting">Hello ${displayName}! </p>
+                <p class="greeting">Hello ${displayName}! 👋</p>
                 <p class="message">${message}</p>
                 ${content}
                 </div>
                 <div class="footer">
                 <p>This is an automated notification from Brainiacs Quiz Platform.</p>
                 <p>© ${new Date().getFullYear()} Brainiacs. All rights reserved.</p>
-                <p style="margin-top: 10px;">
-                    <a href="#" style="color: ${accentColor}; text-decoration: none; margin: 0 10px;">Privacy Policy</a> |
-                    <a href="#" style="color: ${accentColor}; text-decoration: none; margin: 0 10px;">Terms of Service</a> |
-                    <a href="#" style="color: ${accentColor}; text-decoration: none; margin: 0 10px;">Contact Support</a>
-                </p>
-                </div>
-            </div>
-            </body>
-        </html>
-        `;
-    }
-
-    private getPlainTextEmail(
-        displayName: string,
-        actionType: string,
-        timestamp: string,
-    ): string {
-        return `
-    Hello ${displayName}!
-
-    ${actionType} Notification - Brainiacs Quiz Platform
-
-    Action: ${actionType}
-    Time: ${timestamp}
-    New tokens: Generated
-
-    If you didn't perform this action, please secure your account immediately.
-
-    ---
-    © ${new Date().getFullYear()} Brainiacs. All rights reserved.
-    This is an automated security notification.
-        `.trim();
-    }
-
-    private getSecurityAlertTemplate(
-        displayName: string,
-        timestamp: string,
-        ipAddress?: string,
-    ): string {
-        return `
-        <!DOCTYPE html>
-        <html>
-            <head>
-            <meta charset="UTF-8">
-            <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 20px auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-                .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
-                .content { padding: 30px 20px; }
-                .alert-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
-            </style>
-            </head>
-            <body>
-            <div class="container">
-                <div class="header">
-                <h1>Security Alert</h1>
-                </div>
-                <div class="content">
-                <p>Hello ${displayName},</p>
-                <p>We detected unusual activity on your Brainiacs account.</p>
-                <div class="alert-box">
-                    <p><strong>Time:</strong> ${timestamp}</p>
-                    ${ipAddress ? `<p><strong>IP Address:</strong> ${ipAddress}</p>` : ''}
-                </div>
-                <p>If this wasn't you, please secure your account immediately by changing your password.</p>
                 </div>
             </div>
             </body>
