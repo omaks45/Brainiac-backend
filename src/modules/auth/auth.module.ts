@@ -20,13 +20,12 @@ import { EmailModule } from './notification/email.module';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRATION', '15m'),
+          expiresIn: configService.get('JWT_EXPIRATION') || '15m',
         },
       }),
       inject: [ConfigService],
     }),
     EmailModule,
-
   ],
   controllers: [AuthController],
   providers: [
