@@ -226,36 +226,61 @@ export class AuthService {
 
     return { message: 'If the email exists, a password reset link has been sent' };
   }
-
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     const { token, newPassword } = resetPasswordDto;
 
-    const user = await this.userModel
-      .findOne({
+    // Validate input
+    if (!token || !newPassword) {
+      throw new BadRequestException('Token and new password are required');
+    }
+
+    // First, find all users with non-expired reset tokens
+    const users = await this.userModel
+      .find({
         resetPasswordExpiry: { $gt: new Date() },
+        resetPasswordToken: { $ne: null }, // Ensure token exists
       })
-      .select('email displayName resetPasswordToken resetPasswordExpiry password')
+      .select('email displayName resetPasswordToken resetPasswordExpiry password googleId')
       .exec();
 
-    if (!user || !user.resetPasswordToken) {
+    if (!users || users.length === 0) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    const isTokenValid = await bcrypt.compare(token, user.resetPasswordToken);
-    if (!isTokenValid) {
+    // Find the user whose hashed token matches the provided token
+    let matchedUser: UserDocument | null = null;
+    for (const user of users) {
+      // Safety check: ensure both token and hash exist before comparing
+      if (user.resetPasswordToken && token) {
+        try {
+          const isTokenValid = await bcrypt.compare(token, user.resetPasswordToken);
+          if (isTokenValid) {
+            matchedUser = user;
+            break;
+          }
+        } catch (error) {
+          // Skip this user if comparison fails
+          continue;
+        }
+      }
+    }
+
+    if (!matchedUser) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    // Prevent password reuse
-    const isSamePassword = await bcrypt.compare(newPassword, user.password);
-    if (isSamePassword) {
-      throw new BadRequestException('New password must be different from the old password');
+    // Prevent password reuse (only if user has an existing password)
+    if (matchedUser.password) {
+      const isSamePassword = await bcrypt.compare(newPassword, matchedUser.password);
+      if (isSamePassword) {
+        throw new BadRequestException('New password must be different from the old password');
+      }
     }
 
     const hashedPassword = await this.hashPassword(newPassword);
 
     await this.userModel.findByIdAndUpdate(
-      user._id,
+      matchedUser._id,
       {
         password: hashedPassword,
         resetPasswordToken: null,
@@ -266,8 +291,8 @@ export class AuthService {
     );
 
     await this.emailService.sendPasswordChangedNotification(
-      user.email,
-      user.displayName,
+      matchedUser.email,
+      matchedUser.displayName,
     );
 
     return { message: 'Password has been reset successfully. Please login with your new password' };

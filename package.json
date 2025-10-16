@@ -48,6 +48,7 @@
     "date-fns": "^4.1.0",
     "lodash": "^4.17.21",
     "mongoose": "^8.19.1",
+    "nodemailer": "^7.0.9",
     "openai": "^6.3.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
