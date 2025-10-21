@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { QuizzesService } from './quizzes.service';
+import { QuizzesService } from '../quizzes/services/quizzes.service';
 import { QuizzesController } from './quizzes.controller';
 
 @Module({
