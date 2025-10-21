@@ -109,7 +109,7 @@ export class AiQuizGeneratorService {
         'software-engineering': 'Focus on programming concepts, algorithms, design patterns, software architecture, testing, and best practices.',
         'mathematics': 'Cover algebra, calculus, geometry, statistics, probability, and mathematical reasoning.',
         'data-science': 'Include machine learning, statistics, data analysis, data visualization, and Python/R concepts.',
-        'ui-ux-design': 'Cover design principles, user research, prototyping, accessibility, design systems, and tools.',
+        'product-design': 'Cover design principles, user research, prototyping, accessibility, design systems, and tools.',
         'data-analytics': 'Focus on data processing, SQL, business intelligence, visualization, and analytical thinking.',
         'biological-science': 'Cover cell biology, genetics, ecology, evolution, and life sciences.',
         'physical-science': 'Include physics, chemistry, astronomy, and earth sciences.',
