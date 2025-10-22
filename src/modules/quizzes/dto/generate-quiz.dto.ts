@@ -8,8 +8,7 @@ export enum QuizCategory {
     DATA_SCIENCE = 'data-science',
     PRODUCT_DESIGN = 'product-design',
     DATA_ANALYTICS = 'data-analytics',
-    BIOLOGICAL_SCIENCE = 'biological-science',
-    PHYSICAL_SCIENCE = 'physical-science',
+    SOCIAL_SCIENCE = 'social-science',
     ART_HUMANITIES = 'art-humanities',
     ECONOMICS = 'economics',
 }

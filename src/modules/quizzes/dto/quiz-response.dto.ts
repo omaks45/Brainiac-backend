@@ -1,4 +1,4 @@
-// src/modules/quizzes/dto/quiz-response.dto.ts
+
 import { ApiProperty } from '@nestjs/swagger';
 
 export class QuestionResponseDto {

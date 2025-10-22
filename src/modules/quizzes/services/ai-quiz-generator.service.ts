@@ -111,8 +111,7 @@ export class AiQuizGeneratorService {
         'data-science': 'Include machine learning, statistics, data analysis, data visualization, and Python/R concepts.',
         'product-design': 'Cover design principles, user research, prototyping, accessibility, design systems, and tools.',
         'data-analytics': 'Focus on data processing, SQL, business intelligence, visualization, and analytical thinking.',
-        'biological-science': 'Cover cell biology, genetics, ecology, evolution, and life sciences.',
-        'physical-science': 'Include physics, chemistry, astronomy, and earth sciences.',
+        'social-science': 'Cover psychology, sociology, anthropology, and political science.',
         'art-humanities': 'Cover history, literature, philosophy, arts, and cultural studies.',
         'economics': 'Include microeconomics, macroeconomics, market systems, and economic theory.',
         };
