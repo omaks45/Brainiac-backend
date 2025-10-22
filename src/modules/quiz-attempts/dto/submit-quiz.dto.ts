@@ -1,4 +1,4 @@
-// src/modules/quiz-attempts/dto/submit-quiz.dto.ts
+
 import { ApiProperty } from '@nestjs/swagger';
 import { IsMongoId, IsArray, ValidateNested, ArrayMinSize } from 'class-validator';
 import { Type } from 'class-transformer';
