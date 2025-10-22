@@ -16,7 +16,7 @@ export class QuizzesService {
     private aiQuizGenerator: AiQuizGeneratorService,
   ) {}
 
-  async generateQuiz(generateQuizDto: GenerateQuizDto): Promise<Quiz> {
+  async generateQuiz(generateQuizDto: GenerateQuizDto): Promise<QuizDocument> {
     const { category, difficulty, numberOfQuestions } = generateQuizDto;
 
     this.logger.log(`Generating quiz: ${category}, ${difficulty}, ${numberOfQuestions} questions`);
