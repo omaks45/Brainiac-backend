@@ -160,27 +160,34 @@ export class EmailService {
         verificationToken: string,
     ): Promise<void> {
         try {
-        const verificationUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/auth/verify-email?token=${verificationToken}`;
-        
-        const mailOptions = {
-            from: {
-            name: 'Brainiacs',
-            address: this.configService.get<string>('EMAIL_USER'),
-            },
-            to: email,
-            subject: 'Verify Your Email - Brainiacs',
-            html: this.getVerificationEmailTemplate(displayName, verificationUrl),
-            text: `Email Verification\n\nHello ${displayName},\n\nWelcome to Brainiacs! Please verify your email by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.`,
-        };
+            const verificationUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3001')}/auth/verify-email?token=${verificationToken}`;
+            
+            // DEBUG: Log the token and URL
+            this.logger.debug('=== EMAIL VERIFICATION DEBUG ===');
+            this.logger.debug(`Email: ${email}`);
+            this.logger.debug(`Token (first 20 chars): ${verificationToken.substring(0, 20)}...`);
+            this.logger.debug(`Token length: ${verificationToken.length}`);
+            this.logger.debug(`Full URL: ${verificationUrl}`);
+            this.logger.debug('================================');
+            
+            const mailOptions = {
+                from: {
+                    name: 'Brainiacs',
+                    address: this.configService.get<string>('EMAIL_USER'),
+                },
+                to: email,
+                subject: 'Verify Your Email - Brainiacs',
+                html: this.getVerificationEmailTemplate(displayName, verificationUrl),
+                text: `Email Verification\n\nHello ${displayName},\n\nWelcome to Brainiacs! Please verify your email by clicking the link below:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nIf you cannot click the link, copy and paste this token: ${verificationToken}`,
+            };
 
-        await this.transporter.sendMail(mailOptions);
-        this.logger.log(`Verification email sent to ${email}`);
+            await this.transporter.sendMail(mailOptions);
+            this.logger.log(`Verification email sent to ${email}`);
         } catch (error) {
-        this.logger.error(`Failed to send verification email to ${email}:`, error);
-        throw error;
+            this.logger.error(`Failed to send verification email to ${email}:`, error);
+            throw error;
         }
     }
-
     /**
      * Send welcome email after verification
      * @param email - User's email address

@@ -1,15 +1,15 @@
-// src/modules/auth/auth.service.ts
+
 import {
   Injectable,
   ConflictException,
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-//import { JwtService } from '@nestjs/jwt';
-import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -23,7 +23,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
-  // Cache frequently accessed config values
+  private readonly logger = new Logger(AuthService.name);
   private readonly jwtSecret: string;
   private readonly jwtExpiration: string;
   private readonly jwtRefreshSecret: string;
@@ -53,20 +53,32 @@ export class AuthService {
     const verificationToken = this.generateSecureToken();
     const verificationTokenExpiry = new Date(Date.now() + this.verificationTokenExpiry);
 
+    // DEBUG: Log token generation
+    this.logger.debug('=== REGISTRATION DEBUG ===');
+    this.logger.debug(`Email: ${email}`);
+    this.logger.debug(`Plain token (first 20 chars): ${verificationToken.substring(0, 20)}...`);
+    this.logger.debug(`Plain token (FULL): ${verificationToken}`);
+    this.logger.debug(`Plain token length: ${verificationToken.length}`);
+    this.logger.debug(`Token expiry: ${verificationTokenExpiry}`);
+
+    const hashedToken = await this.hashPassword(verificationToken);
+    this.logger.debug(`Hashed token (first 20 chars): ${hashedToken.substring(0, 20)}...`);
+    this.logger.debug('==========================');
+
     const user = await this.userModel.create({
       email,
       username,
       displayName,
       password: hashedPassword,
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-      verificationToken: await this.hashPassword(verificationToken),
+      verificationToken: hashedToken, // Store hashed version
       verificationTokenExpiry,
       stats: this.getDefaultStats(),
     });
 
     const [tokens] = await Promise.all([
       this.generateTokens(user),
-      this.emailService.sendVerificationEmail(email, displayName, verificationToken),
+      this.emailService.sendVerificationEmail(email, displayName, verificationToken), // Send plain version
       this.emailService.sendLoginNotification(email, displayName, 'Registration'),
     ]);
 
@@ -99,46 +111,38 @@ export class AuthService {
 
   /**
    * Google OAuth Login/Signup Handler
-   * 
-   * @param googleUser - User data returned from Google OAuth (email, googleId, etc.)
-   * @returns Authentication tokens and user data
    */
   async googleLogin(googleUser: any): Promise<AuthResponseDto> {
     const { googleId, email, displayName, avatar } = googleUser;
 
-    // Check if user exists by email
     const existingUser = await this.userModel.findOne({ email }).exec();
 
     let user: UserDocument;
 
     if (existingUser) {
-      // Update their Google ID and last active time
       user = await this.userModel.findOneAndUpdate(
         { email },
         {
           $set: {
             googleId,
             'stats.lastActive': new Date(),
-            // Update avatar only if they're using default Dicebear avatar
             ...(existingUser.avatar.includes('dicebear') && avatar ? { avatar } : {}),
           },
         },
         { new: true }
       ).exec();
     } else {
-      // Create new account with Google data
       user = await this.userModel.create({
         email,
         username: this.generateUsername(email),
         displayName,
         googleId,
         avatar,
-        isEmailVerified: true, // Google accounts are pre-verified
+        isEmailVerified: true,
         stats: this.getDefaultStats(),
       });
     }
 
-    // Generate JWT tokens for the user
     const [tokens] = await Promise.all([
       this.generateTokens(user),
       this.emailService.sendLoginNotification(
@@ -155,6 +159,7 @@ export class AuthService {
       user: this.sanitizeUser(user),
     };
   }
+
   async refreshTokens(userId: string, refreshToken: string): Promise<AuthResponseDto> {
     const user = await this.userModel
       .findById(userId)
@@ -183,7 +188,6 @@ export class AuthService {
     };
   }
 
-  
   async logout(userId: string): Promise<void> {
     await this.userModel.findByIdAndUpdate(
       userId,
@@ -201,7 +205,6 @@ export class AuthService {
       .lean()
       .exec();
 
-    // Always return success message for security (prevent email enumeration)
     if (!user) {
       return { message: 'If the email exists, a password reset link has been sent' };
     }
@@ -226,19 +229,18 @@ export class AuthService {
 
     return { message: 'If the email exists, a password reset link has been sent' };
   }
+
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     const { token, newPassword } = resetPasswordDto;
 
-    // Validate input
     if (!token || !newPassword) {
       throw new BadRequestException('Token and new password are required');
     }
 
-    // First, find all users with non-expired reset tokens
     const users = await this.userModel
       .find({
         resetPasswordExpiry: { $gt: new Date() },
-        resetPasswordToken: { $ne: null }, // Ensure token exists
+        resetPasswordToken: { $ne: null },
       })
       .select('email displayName resetPasswordToken resetPasswordExpiry password googleId')
       .exec();
@@ -247,10 +249,8 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    // Find the user whose hashed token matches the provided token
     let matchedUser: UserDocument | null = null;
     for (const user of users) {
-      // Safety check: ensure both token and hash exist before comparing
       if (user.resetPasswordToken && token) {
         try {
           const isTokenValid = await bcrypt.compare(token, user.resetPasswordToken);
@@ -259,7 +259,6 @@ export class AuthService {
             break;
           }
         } catch (error) {
-          // Skip this user if comparison fails
           continue;
         }
       }
@@ -269,7 +268,6 @@ export class AuthService {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
-    // Prevent password reuse (only if user has an existing password)
     if (matchedUser.password) {
       const isSamePassword = await bcrypt.compare(newPassword, matchedUser.password);
       if (isSamePassword) {
@@ -285,7 +283,7 @@ export class AuthService {
         password: hashedPassword,
         resetPasswordToken: null,
         resetPasswordExpiry: null,
-        refreshToken: null, // Invalidate all sessions
+        refreshToken: null,
       },
       { new: false }
     );
@@ -312,7 +310,6 @@ export class AuthService {
       throw new BadRequestException('Email is already verified');
     }
 
-    // Rate limiting: Check if previous token is still valid (prevent spam)
     if (user.verificationTokenExpiry && user.verificationTokenExpiry > new Date()) {
       const minutesRemaining = Math.ceil(
         (user.verificationTokenExpiry.getTime() - Date.now()) / 60000
@@ -324,6 +321,14 @@ export class AuthService {
 
     const verificationToken = this.generateSecureToken();
     const verificationTokenExpiry = new Date(Date.now() + this.verificationTokenExpiry);
+
+    // DEBUG: Log resend token
+    this.logger.debug('=== RESEND VERIFICATION DEBUG ===');
+    this.logger.debug(`Email: ${email}`);
+    this.logger.debug(`New token (first 20 chars): ${verificationToken.substring(0, 20)}...`);
+    this.logger.debug(`New token (FULL): ${verificationToken}`);
+    this.logger.debug(`New token expiry: ${verificationTokenExpiry}`);
+    this.logger.debug('=================================');
 
     await this.userModel.findByIdAndUpdate(
       user._id,
@@ -344,25 +349,85 @@ export class AuthService {
   }
 
   async verifyEmail(token: string): Promise<{ message: string }> {
-    const user = await this.userModel
+    // DEBUG: Log incoming token
+    this.logger.debug('=== EMAIL VERIFICATION DEBUG ===');
+    this.logger.debug(`Received token (first 20 chars): ${token?.substring(0, 20)}...`);
+    this.logger.debug(`Received token length: ${token?.length}`);
+
+    if (!token) {
+      throw new BadRequestException('Verification token is required');
+    }
+
+    // Trim whitespace
+    const cleanToken = token.trim();
+    this.logger.debug(`Clean token: ${cleanToken}`);
+
+    // First, check if there's an already verified user (to give a better message)
+    const verifiedUser = await this.userModel
       .findOne({
-        verificationTokenExpiry: { $gt: new Date() },
-        isEmailVerified: false,
+        isEmailVerified: true,
       })
-      .select('email displayName verificationToken isEmailVerified')
+      .select('email isEmailVerified')
+      .limit(1)
       .exec();
 
-    if (!user || !user.verificationToken) {
+    // Find users with non-expired tokens that need verification
+    const users = await this.userModel
+      .find({
+        verificationTokenExpiry: { $gt: new Date() },
+        verificationToken: { $ne: null },
+        isEmailVerified: false,
+      })
+      .select('email displayName isEmailVerified verificationTokenExpiry verificationToken')
+      .exec();
+
+    this.logger.debug(`Found ${users.length} users with non-expired tokens`);
+
+    if (!users || users.length === 0) {
+      // Check if user might be already verified
+      if (verifiedUser) {
+        this.logger.warn('Token not found - user may already be verified');
+        return { message: 'Email has already been verified. You can now login.' };
+      }
+      
+      this.logger.warn('No users found with valid verification tokens');
       throw new BadRequestException('Invalid or expired verification token');
     }
 
-    const isTokenValid = await bcrypt.compare(token, user.verificationToken);
-    if (!isTokenValid) {
+    let matchedUser: UserDocument | null = null;
+    for (const user of users) {
+      if (user.verificationToken && cleanToken) {
+        try {
+          this.logger.debug(`\n--- Checking user: ${user.email} ---`);
+          this.logger.debug(`Stored hash (first 20 chars): ${user.verificationToken.substring(0, 20)}...`);
+          this.logger.debug(`Token expiry: ${user.verificationTokenExpiry}`);
+          
+          const isTokenValid = await bcrypt.compare(cleanToken, user.verificationToken);
+          this.logger.debug(`Token match result: ${isTokenValid}`);
+          
+          if (isTokenValid) {
+            matchedUser = user;
+            this.logger.debug(`✓ Match found for user: ${user.email}`);
+            break;
+          }
+        } catch (error) {
+          this.logger.error(`Error comparing token for user ${user.email}:`, error);
+          continue;
+        }
+      }
+    }
+
+    if (!matchedUser) {
+      this.logger.warn('No matching user found for provided token');
+      // Check again if user is already verified (token may have been used)
+      if (verifiedUser) {
+        return { message: 'Email has already been verified. You can now login.' };
+      }
       throw new BadRequestException('Invalid or expired verification token');
     }
 
     await this.userModel.findByIdAndUpdate(
-      user._id,
+      matchedUser._id,
       {
         isEmailVerified: true,
         verificationToken: null,
@@ -371,12 +436,21 @@ export class AuthService {
       { new: false }
     );
 
-    await this.emailService.sendWelcomeEmail(user.email, user.displayName);
+    this.logger.log(`Email verified successfully for: ${matchedUser.email}`);
 
+    // Send welcome email in background (don't await to avoid slowing response)
+    this.emailService.sendWelcomeEmail(
+      matchedUser.email, 
+      matchedUser.displayName
+    ).catch(err => {
+      this.logger.error(`Failed to send welcome email: ${err.message}`);
+    });
+
+    this.logger.debug('================================');
     return { message: 'Email verified successfully' };
   }
-
-  // ==================== PRIVATE HELPER METHODS (DRY) ====================
+  
+  // ==================== PRIVATE HELPER METHODS ====================
 
   private async checkUserExists(email: string, username: string): Promise<void> {
     const existingUser = await this.userModel
@@ -473,11 +547,11 @@ export class AuthService {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('JWT_SECRET'),
-        expiresIn: this.configService.get('JWT_EXPIRATION') || '15m', // Remove <string>
+        expiresIn: this.configService.get('JWT_EXPIRATION') || '15m',
       }),
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-        expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION') || '7d', // Remove <string>
+        expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION') || '7d',
       }),
     ]);
 

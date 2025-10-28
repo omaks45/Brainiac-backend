@@ -1,4 +1,4 @@
-// src/main.ts
+
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -23,7 +23,7 @@ async function bootstrap() {
     .split(',')
     .map(origin => origin.trim());
 
-  // Enable CORS with multiple origins
+  // Enable CORS with multiple origins (includes WebSocket support)
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
@@ -68,7 +68,16 @@ async function bootstrap() {
       .setDescription(
         'Complete API documentation for Brainiac Quiz Application. ' +
         'This API provides endpoints for user authentication, quiz generation, ' +
-        'quiz attempts, challenges, leaderboards, and badge management.',
+        'quiz attempts, challenges, leaderboards, and badge management.\n\n' +
+        '**WebSocket Support:**\n' +
+        '- Real-time quiz challenges\n' +
+        '- Live leaderboard updates\n' +
+        '- Challenge notifications\n\n' +
+        '**WebSocket Connection:**\n' +
+        `- Development: ws://localhost:${port}\n` +
+        '- Production: wss://your-api.vercel.app\n\n' +
+        '**Authentication:**\n' +
+        'WebSocket connections support JWT authentication via connection query parameters or handshake headers.',
       )
       .setVersion('1.0')
       .addTag('auth', 'Authentication endpoints - Register, Login, OAuth')
@@ -135,10 +144,12 @@ async function bootstrap() {
   
   if (!isProduction) {
     logger.log(`Application running on: http://localhost:${port}`);
+    logger.log(`WebSocket available at: ws://localhost:${port}`);
     logger.log(`Environment: ${configService.get<string>('NODE_ENV')}`);
     logger.log(`CORS enabled for: ${corsOrigins.join(', ')}`);
   } else {
     logger.log('Application started successfully in production mode');
+    logger.log('WebSocket support enabled');
   }
 }
 

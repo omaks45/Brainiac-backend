@@ -6,19 +6,23 @@ import { APP_GUARD } from '@nestjs/core';
 import configurations from './config';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { QuizzesModule } from './modules/quizzes/quizzes.module';
+import { QuizAttemptsModule } from './modules/quiz-attempts/quiz-attempts.module';
+import { ChallengesModule } from './modules/challenges/challenges.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 
 @Module({
   imports: [
-    // Config Module - Load environment variables and configurations
+    // Config Module
     ConfigModule.forRoot({
       isGlobal: true,
       load: configurations,
       envFilePath: '.env',
-      cache: true, // Cache config for better performance
+      cache: true,
     }),
 
-    // Database Module - MongoDB Connection
+    // Database Module
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -42,11 +46,15 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
     // Feature Modules
     AuthModule,
     UsersModule,
+    QuizzesModule,
+    QuizAttemptsModule,
+    ChallengesModule,
+    CategoriesModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard, // Apply JWT guard globally to all routes
+      useClass: JwtAuthGuard, // Apply JWT guard globally
     },
   ],
 })
