@@ -2,15 +2,15 @@
 
 A comprehensive quiz application backend built with NestJS, featuring AI-powered quiz generation, real-time challenges, and social gaming features.
 
-## 🚀 Current Status
+## Current Status
 
 **Completed Features:**
-- ✅ Phase 1: User Authentication System (JWT + Google OAuth)
-- ✅ Phase 2: AI-Powered Quiz Generation & Management
-- ✅ API Documentation (Swagger)
-- ✅ Database Integration (MongoDB)
-- ✅ Security Features (Guards, Validation)
-- ✅ WebSocket Infrastructure (Real-time events)
+- Phase 1: User Authentication System (JWT + Google OAuth)
+- Phase 2: AI-Powered Quiz Generation & Management
+- API Documentation (Swagger)
+- Database Integration (MongoDB)
+- Security Features (Guards, Validation)
+- WebSocket Infrastructure (Real-time events)
 
 ---
 
