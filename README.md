@@ -2,15 +2,15 @@
 
 A comprehensive quiz application backend built with NestJS, featuring AI-powered quiz generation, real-time challenges, and social gaming features.
 
-## 🚀 Current Status
+## Current Status
 
 **Completed Features:**
-- ✅ Phase 1: User Authentication System (JWT + Google OAuth)
-- ✅ Phase 2: AI-Powered Quiz Generation & Management
-- ✅ API Documentation (Swagger)
-- ✅ Database Integration (MongoDB)
-- ✅ Security Features (Guards, Validation)
-- ✅ WebSocket Infrastructure (Real-time events)
+- Phase 1: User Authentication System (JWT + Google OAuth)
+- Phase 2: AI-Powered Quiz Generation & Management
+- API Documentation (Swagger)
+- Database Integration (MongoDB)
+- Security Features (Guards, Validation)
+- WebSocket Infrastructure (Real-time events)
 
 ---
 
@@ -223,17 +223,16 @@ Phase 2 implements the core quiz functionality powered by Google Gemini AI, enab
 
 ### Quiz Categories
 
-| Category | ID | Description | Icon |
-|----------|----|-----------  |------|
-| Software Engineering | `software-engineering` | Programming, algorithms, design patterns | 💻 |
-| Mathematics | `mathematics` | Algebra, calculus, geometry, statistics | 🔢 |
-| Data Science | `data-science` | ML, statistics, data analysis | 📊 |
-| UI/UX Design | `ui-ux-design` | Design principles, prototyping | 🎨 |
-| Data Analytics | `data-analytics` | SQL, BI, visualization | 📈 |
-| Biological Science | `biological-science` | Biology, genetics, ecology | 🧬 |
-| Physical Science | `physical-science` | Physics, chemistry, astronomy | ⚛️ |
-| Art & Humanities | `art-humanities` | History, literature, philosophy | 🎭 |
-| Economics | `economics` | Micro/macroeconomics, markets | 💰 |
+| Category | ID | Description |
+|----------|----|-----------  |
+| Software Engineering | `software-engineering` | Programming, algorithms, design patterns |
+| Mathematics | `mathematics` | Algebra, calculus, geometry, statistics |
+| Data Science | `data-science` | ML, statistics, data analysis |
+| Product Design | `product-design` | Design principles, prototyping |
+| Data Analytics | `data-analytics` | SQL, BI, visualization |
+| Social Science | `social-science` | Psychology, polictical science, anthropology |
+| Art & Humanities | `art-humanities` | History, literature, philosophy |
+| Economics | `economics` | Micro/macroeconomics, markets |
 
 ### Difficulty Levels
 
