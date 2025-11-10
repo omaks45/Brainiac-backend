@@ -1,0 +1,19 @@
+---
+
+## **Complete `.dockerignore` Content (Copy This):**
+```
+node_modules
+npm-debug.log
+dist
+.env
+.env.*
+.git
+.gitignore
+README.md
+.dockerignore
+uploads
+*.md
+.vscode
+.idea
+coverage
+.cache
