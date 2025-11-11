@@ -51,7 +51,7 @@ async function bootstrap() {
   
   if (swaggerEnabled) {
     const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    const port = configService.get<number>('PORT', 5000);
+    const port = parseInt(process.env.PORT || '8080', 10);
     
     // Determine server URLs based on environment
     const servers = isProduction
@@ -139,8 +139,8 @@ async function bootstrap() {
     }
   }
 
-  const port = configService.get<number>('PORT') || 5000;
-  await app.listen(port);
+  const port = parseInt(process.env.PORT || '8080', 10);
+  await app.listen(port, '0.0.0.0');
   
   if (!isProduction) {
     logger.log(`Application running on: http://localhost:${port}`);
