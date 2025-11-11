@@ -1,4 +1,3 @@
-
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -11,7 +10,7 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
   
   const app = await NestFactory.create(AppModule, {
-    logger: isProduction ? ['error', 'warn'] : ['log', 'error', 'warn', 'debug', 'verbose'],
+    logger: isProduction ? ['error', 'warn', 'log'] : ['log', 'error', 'warn', 'debug', 'verbose'],
   });
 
   const configService = app.get(ConfigService);
@@ -46,17 +45,16 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger Configuration - Available in both development and production
+  // Swagger Configuration
   const swaggerEnabled = configService.get<string>('SWAGGER_ENABLED', 'true') === 'true';
   
   if (swaggerEnabled) {
     const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3001');
     const port = parseInt(process.env.PORT || '8080', 10);
     
-    // Determine server URLs based on environment
     const servers = isProduction
       ? [
-          { url: configService.get<string>('BACKEND_URL') || 'https://your-api.vercel.app', description: 'Production Server' },
+          { url: configService.get<string>('BACKEND_URL') || 'https://brainiac-quiz-api.fly.dev', description: 'Production Server' },
           { url: `http://localhost:${port}`, description: 'Local Development' },
         ]
       : [
@@ -75,7 +73,7 @@ async function bootstrap() {
         '- Challenge notifications\n\n' +
         '**WebSocket Connection:**\n' +
         `- Development: ws://localhost:${port}\n` +
-        '- Production: wss://your-api.vercel.app\n\n' +
+        '- Production: wss://brainiac-quiz-api.fly.dev\n\n' +
         '**Authentication:**\n' +
         'WebSocket connections support JWT authentication via connection query parameters or handshake headers.',
       )
@@ -101,7 +99,6 @@ async function bootstrap() {
       .setExternalDoc('Frontend Application', frontendUrl)
       .build();
 
-    // Add servers dynamically
     servers.forEach(server => {
       config.servers = config.servers || [];
       config.servers.push(server);
@@ -132,24 +129,22 @@ async function bootstrap() {
       },
     });
 
-    if (!isProduction) {
-      logger.log(`Swagger documentation: http://localhost:${port}/api/docs`);
-    } else {
-      logger.log('Swagger documentation available at /api/docs');
-    }
+    logger.log('Swagger documentation available at /api/docs');
   }
 
   const port = parseInt(process.env.PORT || '8080', 10);
+  
   await app.listen(port, '0.0.0.0');
   
+  logger.log(`Application started successfully`);
+  logger.log(`Server listening on: 0.0.0.0:${port}`);
+  logger.log(`Environment: ${process.env.NODE_ENV}`);
+  logger.log(`CORS enabled for: ${corsOrigins.join(', ')}`);
+  
   if (!isProduction) {
-    logger.log(`Application running on: http://localhost:${port}`);
-    logger.log(`WebSocket available at: ws://localhost:${port}`);
-    logger.log(`Environment: ${configService.get<string>('NODE_ENV')}`);
-    logger.log(`CORS enabled for: ${corsOrigins.join(', ')}`);
-  } else {
-    logger.log('Application started successfully in production mode');
-    logger.log('WebSocket support enabled');
+    logger.log(`Local URL: http://localhost:${port}`);
+    logger.log(`Swagger: http://localhost:${port}/api/docs`);
+    logger.log(`WebSocket: ws://localhost:${port}`);
   }
 }
 

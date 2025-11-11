@@ -11,6 +11,7 @@ import { QuizAttemptsModule } from './modules/quiz-attempts/quiz-attempts.module
 import { ChallengesModule } from './modules/challenges/challenges.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
     ChallengesModule,
     CategoriesModule,
   ],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,

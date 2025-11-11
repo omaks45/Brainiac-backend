@@ -1,0 +1,44 @@
+# fly.toml app configuration file generated for brainiac-quiz-api on 2025-11-11T02:23:40+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'brainiac-quiz-api'
+primary_region = 'lhr'
+
+[build]
+
+[env]
+  AI_PROVIDER = 'gemini'
+  DEFAULT_PAGE_LIMIT = '20'
+  EMAIL_FROM = 'Brainiac Quiz <brainiacs45@gmail.com>'
+  EMAIL_SERVICE = 'Gmail'
+  GEMINI_MODEL = 'gemini-2.5-flash'
+  MAX_FILE_SIZE = '5242880'
+  MAX_PAGE_LIMIT = '100'
+  NODE_ENV = 'production'
+  PORT = '8080'
+  SWAGGER_ENABLED = 'true'
+  THROTTLE_LIMIT = '10'
+  THROTTLE_TTL = '60'
+  UPLOAD_DIRECTORY = './uploads'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = "/api"
+
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
